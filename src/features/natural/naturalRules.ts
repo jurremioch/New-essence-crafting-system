@@ -66,7 +66,7 @@ export const NATURAL_ACTIONS: ActionConfig[] = [
     gradient: { from: "from-violet-500", to: "to-violet-700" },
     optionalCost: {
       resource: "rawAE",
-      label: "Raw Arcane Essence per attempt (–4 DC each)",
+      label: "Extra RawAE per attempt (–4 DC each)",
       perUnitDcReduction: 4,
       minDc: 5,
     },

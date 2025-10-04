@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Dice4, History, Play, RefreshCw, Undo2 } from "lucide-react";
+import { Dice4, Play, RefreshCw, Undo2 } from "lucide-react";
 import { DiceOverlay, type OverlayEntry } from "@/components/DiceOverlay";
 import { RecentRolls, type RollLogEntry } from "@/components/RecentRolls";
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
@@ -85,7 +85,7 @@ const RESOURCE_LABELS: Record<Resource, string> = {
   fused: "Fused",
   superior: "Superior",
   supreme: "Supreme",
-  rawAE: "Raw Arcane Essence",
+  rawAE: "RawAE",
 };
 
 interface ActionUiState {
@@ -215,9 +215,9 @@ function mergeResourceMap(target: ResourceMap, source: ResourceMap): ResourceMap
 }
 
 const ActionChip = ({ label, value }: { label: string; value: string }) => (
-  <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-700">
+  <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-2 py-0.5 text-xs text-slate-700">
     <span className="font-medium text-slate-500">{label}</span>
-    <span>{value}</span>
+    <span className="truncate">{value}</span>
   </span>
 );
 
@@ -414,17 +414,6 @@ export function NaturalEssence() {
     }));
   };
 
-  const handleDevSmoke = () => {
-    const now = Date.now();
-    pushLogEntry({
-      id: `dev-${now}`,
-      title: "Dev smoke",
-      details: "No-op run for quick UI verification.",
-      timestamp: now,
-    });
-    showMessage("Logged dev smoke entry.");
-  };
-
   const inventoryRequirements = useMemo(() => {
     const requirements: Record<string, ResourceMap> = {};
     for (const action of NATURAL_ACTIONS) {
@@ -442,21 +431,34 @@ export function NaturalEssence() {
     }));
   };
 
-  const renderRequirement = (actionId: string, batch: number) => {
+  const relevantRequirementResources = (requirement?: ResourceMap) =>
+    RESOURCE_ORDER.filter((resource) => (requirement?.[resource] ?? 0) > 0);
+
+  const formatRequirementText = (requirement?: ResourceMap) => {
+    if (!requirement) return "Requires: nothing.";
+    const relevant = relevantRequirementResources(requirement);
+    if (relevant.length === 0) return "Requires: nothing.";
+    const needLine = relevant.map((resource) => `${requirement[resource]} ${RESOURCE_LABELS[resource]}`).join(" & ");
+    const haveLine = relevant.map((resource) => inventory[resource] ?? 0).join(" / ");
+    return `Requires: ${needLine} (have ${haveLine}).`;
+  };
+
+  const missingResources = (requirement?: ResourceMap) => {
+    if (!requirement) return [] as string[];
+    const missing: string[] = [];
+    for (const resource of relevantRequirementResources(requirement)) {
+      const need = requirement[resource] ?? 0;
+      const have = inventory[resource] ?? 0;
+      if (have < need) {
+        missing.push(`${need} ${RESOURCE_LABELS[resource]} (have ${have})`);
+      }
+    }
+    return missing;
+  };
+
+  const renderRequirement = (actionId: string) => {
     const requirement = inventoryRequirements[actionId];
-    const relevantResources = RESOURCE_ORDER.filter((resource) => (requirement?.[resource] ?? 0) > 0);
-    const items = relevantResources.map((resource, index) => {
-      const needed = requirement?.[resource] ?? 0;
-      const have = inventory[resource];
-      const ok = have >= needed;
-      return (
-        <span key={resource} className={ok ? "text-slate-600" : "text-rose-600"}>
-          {needed} {RESOURCE_LABELS[resource]} (have {have})
-          {index < relevantResources.length - 1 ? ", " : ""}
-        </span>
-      );
-    });
-    return <div className="text-xs text-slate-500">Requires {items.length > 0 ? items : "nothing"}.</div>;
+    return <div className="text-xs text-slate-600">{formatRequirementText(requirement)}</div>;
   };
 
   return (
@@ -567,7 +569,9 @@ export function NaturalEssence() {
               Auto-roll d20
             </label>
             <div className="grid gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Check roll mode</span>
+              <span className="text-xs font-medium text-slate-500">
+                Check: Normal / Advantage / Disadvantage (Salvage is always normal)
+              </span>
               <div className="flex gap-2">
                 {([
                   { id: "normal", label: "Normal" },
@@ -588,7 +592,6 @@ export function NaturalEssence() {
                   </button>
                 ))}
               </div>
-              <span className="text-xs text-slate-500">Advantage/Disadvantage applies to the main check only; salvage rolls remain normal.</span>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -596,7 +599,7 @@ export function NaturalEssence() {
                 checked={settings.animateDice}
                 onChange={(event) => handleSettingsChange({ animateDice: event.target.checked })}
               />
-              Dice overlay animation
+              Show dice animation
             </label>
             {!settings.autoRoll && (
               <>
@@ -635,13 +638,6 @@ export function NaturalEssence() {
                 Clear tray
               </button>
             </div>
-            <button
-              type="button"
-              onClick={handleDevSmoke}
-              className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-500 hover:border-slate-400"
-            >
-              <History className="h-4 w-4" /> Dev smoke log
-            </button>
           </div>
         </div>
       </section>
@@ -652,26 +648,30 @@ export function NaturalEssence() {
           const risk = action.risks.find((item) => item.id === ui.riskId) ?? action.risks[0];
           const batch = Math.max(1, ui.batch);
           const extra = Math.max(0, ui.extra);
-          const feasible = maxFeasibleAttempts(inventory, risk, batch, extra, action.optionalCost);
+          const requirement = inventoryRequirements[action.id];
+          const missing = missingResources(requirement);
+          const feasibleCount = maxFeasibleAttempts(inventory, risk, 9999, extra, action.optionalCost);
+          const canRun = batch > 0 && batch <= feasibleCount && missing.length === 0;
           const odds = computeOdds(risk, settings.craftingMod, settings.rollMode, extra, action.optionalCost);
           const expectation = computeExpectedValue(risk, odds, action.optionalCost, extra);
           const wastedDc =
             action.optionalCost && extra > 0 && computeEffectiveDc(risk, extra, action.optionalCost) === action.optionalCost.minDc;
+          const missingTooltip = missing.length > 0 ? `Needs ${missing.join(", ")}` : "Run action";
 
           return (
             <article
               key={action.id}
-              className={`rounded-2xl border border-slate-200 p-5 shadow-sm backdrop-blur ${action.gradient.from} ${action.gradient.to} bg-gradient-to-r`}
+              className={`overflow-hidden rounded-2xl border border-slate-200 p-5 shadow-sm backdrop-blur ${action.gradient.from} ${action.gradient.to} bg-gradient-to-r`}
             >
-              <div className="rounded-xl bg-white/80 p-4">
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-lg font-semibold text-slate-900">{action.tier} — {action.title}</h3>
+              <div className="rounded-xl bg-white/70 p-4 backdrop-blur">
+                <div className="flex flex-col gap-1 overflow-hidden">
+                  <h3 className="truncate text-lg font-semibold text-slate-900">{action.tier} — {action.title}</h3>
                   <p className="text-xs text-slate-500">{action.subtitle}</p>
                 </div>
                 <div className="mt-4 grid gap-4">
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+                  <div className="flex flex-wrap items-end gap-3">
                     {action.risks.length > 1 ? (
-                      <label className="grid gap-1 text-sm">
+                      <label className="grid min-w-[160px] flex-1 gap-1 text-sm">
                         <span className="text-xs font-medium text-slate-500">Risk profile</span>
                         <select
                           value={ui.riskId}
@@ -689,20 +689,34 @@ export function NaturalEssence() {
                       <div className="text-sm text-slate-600">{risk.description}</div>
                     )}
                     {action.optionalCost ? (
-                      <NumberField
-                        label={action.optionalCost.label}
-                        value={ui.extra}
-                        min={0}
-                        onChange={(value) => updateUiState(action.id, { extra: value })}
-                      />
+                      <div className="min-w-[160px] flex-1">
+                        <NumberField
+                          label={action.optionalCost.label}
+                          value={ui.extra}
+                          min={0}
+                          onChange={(value) => updateUiState(action.id, { extra: value })}
+                        />
+                      </div>
                     ) : null}
-                    <NumberField
-                      label="Batch size"
-                      value={ui.batch}
-                      min={1}
-                      onChange={(value) => updateUiState(action.id, { batch: Math.max(1, value) })}
-                    />
-                    <div className="flex flex-wrap justify-end gap-2 md:col-span-1 md:justify-self-end">
+                    <div className="min-w-[160px] flex-1">
+                      <NumberField
+                        label="Batch size"
+                        value={ui.batch}
+                        min={1}
+                        onChange={(value) => updateUiState(action.id, { batch: Math.max(1, value) })}
+                      />
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                          Feasible: ×{feasibleCount}
+                        </span>
+                        {missing.length > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-700">
+                            Need: {missing.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 md:ml-auto">
                       <button
                         type="button"
                         onClick={() =>
@@ -710,28 +724,31 @@ export function NaturalEssence() {
                             batch: Math.max(1, maxFeasibleAttempts(inventory, risk, 9999, extra, action.optionalCost)),
                           })
                         }
-                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:border-slate-400"
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition hover:border-slate-400"
+                        title={feasibleCount > 0 ? `Set batch to ×${feasibleCount}` : missingTooltip}
                       >
                         Max feasible
                       </button>
                       <button
                         type="button"
                         onClick={() => runActionFor(action)}
-                        disabled={feasible <= 0 || feasible < batch}
+                        disabled={!canRun}
+                        aria-disabled={!canRun}
+                        title={missingTooltip}
                         className={`inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                          feasible <= 0 || feasible < batch
-                            ? "cursor-not-allowed border border-slate-200 bg-slate-200 text-slate-500"
-                            : "border border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
+                          canRun
+                            ? "border border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
+                            : "cursor-not-allowed border border-slate-200 bg-slate-200 text-slate-500 opacity-80"
                         }`}
                       >
-                        <Play className="h-4 w-4" /> {feasible < batch ? "Insufficient" : "Run"}
+                        <Play className="h-4 w-4" /> Run
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                    <ActionChip label="Success" value={formatPercent(odds.success)} />
-                    {odds.salvage !== undefined && <ActionChip label="Salvage" value={formatPercent(odds.salvage)} />}
-                    <ActionChip label="Effective DC" value={`${odds.effectiveDc}`} />
+                    <ActionChip label="Check success" value={formatPercent(odds.success)} />
+                    {odds.salvage !== undefined && <ActionChip label="Salvage success" value={formatPercent(odds.salvage)} />}
+                    <ActionChip label="DC" value={`${odds.effectiveDc}`} />
                     <ActionChip label="Time" value={`${risk.timeMinutes} min / attempt`} />
                     {wastedDc && action.optionalCost && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[11px] text-amber-700">
@@ -758,11 +775,11 @@ export function NaturalEssence() {
                     {risk.description}
                     {action.optionalCost && extra > 0 && (
                       <span>
-                        {" "}• Effective DC after reduction: {computeEffectiveDc(risk, extra, action.optionalCost)} (min {action.optionalCost.minDc})
+                        {" "}• DC after reduction: {computeEffectiveDc(risk, extra, action.optionalCost)} (min {action.optionalCost.minDc})
                       </span>
                     )}
                   </div>
-                  {renderRequirement(action.id, batch)}
+                  {renderRequirement(action.id)}
                 </div>
               </div>
             </article>
