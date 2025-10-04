@@ -669,80 +669,98 @@ export function NaturalEssence() {
                   <p className="text-xs text-slate-500">{action.subtitle}</p>
                 </div>
                 <div className="mt-4 grid gap-4">
-                  <div className="flex flex-wrap items-end gap-3">
-                    {action.risks.length > 1 ? (
-                      <label className="grid min-w-[160px] flex-1 gap-1 text-sm">
-                        <span className="text-xs font-medium text-slate-500">Risk profile</span>
-                        <select
-                          value={ui.riskId}
-                          onChange={(event) => updateUiState(action.id, { riskId: event.target.value })}
-                          className="h-9 rounded-lg border border-slate-200 px-2"
-                        >
-                          {action.risks.map((riskOption) => (
-                            <option key={riskOption.id} value={riskOption.id}>
-                              {riskOption.label} — {riskOption.description}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : (
-                      <div className="text-sm text-slate-600">{risk.description}</div>
-                    )}
-                    {action.optionalCost ? (
-                      <div className="min-w-[160px] flex-1">
-                        <NumberField
-                          label={action.optionalCost.label}
-                          value={ui.extra}
-                          min={0}
-                          onChange={(value) => updateUiState(action.id, { extra: value })}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="min-w-[160px] flex-1">
-                      <NumberField
-                        label="Batch size"
-                        value={ui.batch}
-                        min={1}
-                        onChange={(value) => updateUiState(action.id, { batch: Math.max(1, value) })}
-                      />
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                          Feasible: ×{feasibleCount}
-                        </span>
-                        {missing.length > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-700">
-                            Need: {missing.join(", ")}
-                          </span>
+                  <div className="flex flex-wrap gap-3">
+                    <div className="flex min-w-[220px] flex-1">
+                      <div className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-3">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Risk</span>
+                        {action.risks.length > 1 ? (
+                          <label className="grid gap-1 text-sm">
+                            <span className="text-xs font-medium text-slate-500">Risk profile</span>
+                            <select
+                              value={ui.riskId}
+                              onChange={(event) => updateUiState(action.id, { riskId: event.target.value })}
+                              className="h-9 rounded-lg border border-slate-200 px-2"
+                            >
+                              {action.risks.map((riskOption) => (
+                                <option key={riskOption.id} value={riskOption.id}>
+                                  {riskOption.label} — {riskOption.description}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : (
+                          <div className="text-sm text-slate-600">{risk.description}</div>
                         )}
                       </div>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 md:ml-auto">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateUiState(action.id, {
-                            batch: Math.max(1, maxFeasibleAttempts(inventory, risk, 9999, extra, action.optionalCost)),
-                          })
-                        }
-                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition hover:border-slate-400"
-                        title={feasibleCount > 0 ? `Set batch to ×${feasibleCount}` : missingTooltip}
-                      >
-                        Max feasible
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => runActionFor(action)}
-                        disabled={!canRun}
-                        aria-disabled={!canRun}
-                        title={missingTooltip}
-                        className={`inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                          canRun
-                            ? "border border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
-                            : "cursor-not-allowed border border-slate-200 bg-slate-200 text-slate-500 opacity-80"
-                        }`}
-                      >
-                        <Play className="h-4 w-4" /> Run
-                      </button>
+                    {action.optionalCost ? (
+                      <div className="flex min-w-[220px] flex-1">
+                        <div className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-3">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Optional</span>
+                          <NumberField
+                            label={action.optionalCost.label}
+                            value={ui.extra}
+                            min={0}
+                            onChange={(value) => updateUiState(action.id, { extra: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="flex min-w-[220px] flex-1">
+                      <div className="flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white/80 p-3">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Batch</span>
+                          <NumberField
+                            label="Batch size"
+                            value={ui.batch}
+                            min={1}
+                            onChange={(value) => updateUiState(action.id, { batch: Math.max(1, value) })}
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                            Feasible: ×{feasibleCount}
+                          </span>
+                          {missing.length > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-700">
+                              Need: {missing.join(", ")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex min-w-[220px] flex-1">
+                      <div className="flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white/80 p-3">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Actions</span>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateUiState(action.id, {
+                                batch: Math.max(1, maxFeasibleAttempts(inventory, risk, 9999, extra, action.optionalCost)),
+                              })
+                            }
+                            className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition hover:border-slate-400"
+                            title={feasibleCount > 0 ? `Set batch to ×${feasibleCount}` : missingTooltip}
+                          >
+                            Max feasible
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => runActionFor(action)}
+                            disabled={!canRun}
+                            aria-disabled={!canRun}
+                            title={missingTooltip}
+                            className={`inline-flex w-full items-center justify-center gap-1 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                              canRun
+                                ? "border border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
+                                : "cursor-not-allowed border border-slate-200 bg-slate-200 text-slate-500 opacity-80"
+                            }`}
+                          >
+                            <Play className="h-4 w-4" /> Run
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
