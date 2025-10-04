@@ -671,25 +671,38 @@ export function NaturalEssence() {
                 <div className="mt-4 grid gap-4">
                   <div className="flex flex-wrap gap-3">
                     <div className="flex min-w-[220px] flex-1">
-                      <div className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-3">
+                      <div className="flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white/80 p-3">
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Risk</span>
                         {action.risks.length > 1 ? (
-                          <label className="grid gap-1 text-sm">
-                            <span className="text-xs font-medium text-slate-500">Risk profile</span>
-                            <select
-                              value={ui.riskId}
-                              onChange={(event) => updateUiState(action.id, { riskId: event.target.value })}
-                              className="h-9 rounded-lg border border-slate-200 px-2"
-                            >
-                              {action.risks.map((riskOption) => (
-                                <option key={riskOption.id} value={riskOption.id}>
-                                  {riskOption.label} — {riskOption.description}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap gap-2">
+                              {action.risks.map((riskOption) => {
+                                const isSelected = riskOption.id === ui.riskId;
+                                return (
+                                  <button
+                                    key={riskOption.id}
+                                    type="button"
+                                    onClick={() => updateUiState(action.id, { riskId: riskOption.id })}
+                                    aria-pressed={isSelected}
+                                    className={`flex-1 min-w-[96px] rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                                      isSelected
+                                        ? "border-slate-900 bg-slate-900 text-white shadow"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900"
+                                    }`}
+                                  >
+                                    {riskOption.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+                              {risk.description}
+                            </div>
+                          </div>
                         ) : (
-                          <div className="text-sm text-slate-600">{risk.description}</div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+                            {risk.description}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -789,14 +802,11 @@ export function NaturalEssence() {
                         </span>
                       ))}
                   </div>
-                  <div className="text-xs text-slate-600">
-                    {risk.description}
-                    {action.optionalCost && extra > 0 && (
-                      <span>
-                        {" "}• DC after reduction: {computeEffectiveDc(risk, extra, action.optionalCost)} (min {action.optionalCost.minDc})
-                      </span>
-                    )}
-                  </div>
+                  {action.optionalCost && extra > 0 && (
+                    <div className="text-xs text-slate-600">
+                      DC after reduction: {computeEffectiveDc(risk, extra, action.optionalCost)} (min {action.optionalCost.minDc})
+                    </div>
+                  )}
                   {renderRequirement(action.id)}
                 </div>
               </div>
