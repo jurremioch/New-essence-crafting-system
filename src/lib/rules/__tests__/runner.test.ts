@@ -41,6 +41,30 @@ describe("maxFeasibleAttempts", () => {
     expect(maxFeasibleAttempts(inventory, baseRisk, 5, 1, optional)).toBe(3);
     expect(maxFeasibleAttempts(inventory, baseRisk, 5, 0, optional)).toBe(5);
   });
+
+  it("returns all attempts when there are no costs", () => {
+    const freeRisk: RiskConfig = {
+      ...baseRisk,
+      inputs: {},
+    };
+    const inventory = { raw: 0, fine: 0, fused: 0, superior: 0, supreme: 0, rawAE: 0 };
+    expect(maxFeasibleAttempts(inventory, freeRisk, 4, 0, undefined)).toBe(4);
+  });
+
+  it("uses combined resource requirements across inputs and optional cost", () => {
+    const sharedResourceRisk: RiskConfig = {
+      ...baseRisk,
+      inputs: { fused: 2 },
+    };
+    const sharedOptional: OptionalCostConfig = {
+      resource: "fused",
+      label: "Extra Fused",
+      perUnitDcReduction: 1,
+      minDc: 10,
+    };
+    const inventory = { raw: 0, fine: 0, fused: 5, superior: 0, supreme: 0, rawAE: 0 };
+    expect(maxFeasibleAttempts(inventory, sharedResourceRisk, 10, 1, sharedOptional)).toBe(1);
+  });
 });
 
 describe("chanceWithAdv", () => {
