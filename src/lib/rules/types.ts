@@ -1,4 +1,20 @@
-export type Resource = "raw" | "fine" | "fused" | "superior" | "supreme" | "rawAE";
+export type Resource =
+  | "raw"
+  | "fine"
+  | "fused"
+  | "superior"
+  | "supreme"
+  | "rawAE"
+  | "rawElemental"
+  | "fineElemental"
+  | "fusedElemental"
+  | "superiorElemental"
+  | "supremeElemental"
+  | "fineArcane";
+
+export type Tier = "T1" | "T2" | "T3" | "T4" | "T5";
+
+export type EssenceFamily = "natural" | "elemental";
 
 export type Inventory = Record<Resource, number>;
 
@@ -8,9 +24,25 @@ export type AdvMode = "normal" | "adv" | "dis";
 
 export interface ResourceMap extends Partial<Record<Resource, number>> {}
 
-export interface SalvageConfig {
+export interface SalvageStage {
   dc: number;
   returns: ResourceMap;
+  label?: string;
+}
+
+export type SalvageConfig = SalvageStage | { stages: SalvageStage[] };
+
+export interface FlexInputConfig {
+  id: string;
+  label: string;
+  amount: number;
+  options: Resource[];
+}
+
+export interface ToolRequirement {
+  id: "greater" | string;
+  label: string;
+  description?: string;
 }
 
 export interface RiskConfig {
@@ -21,6 +53,8 @@ export interface RiskConfig {
   inputs: ResourceMap;
   outputs: ResourceMap;
   salvage?: SalvageConfig;
+  flexInputs?: FlexInputConfig[];
+  toolRequirement?: ToolRequirement;
   timeMinutes: number;
 }
 
@@ -33,12 +67,13 @@ export interface OptionalCostConfig {
 
 export interface ActionConfig {
   id: string;
-  tier: string;
+  tier: Tier;
   title: string;
   subtitle: string;
   gradient: { from: string; to: string };
   risks: RiskConfig[];
   optionalCost?: OptionalCostConfig;
+  family?: EssenceFamily;
 }
 
 export interface RollDetail {
@@ -51,6 +86,7 @@ export interface RollDetail {
   modifier: number;
   total: number;
   success: boolean;
+  stage?: number;
 }
 
 export interface AttemptResult {
@@ -61,7 +97,7 @@ export interface AttemptResult {
   success: boolean;
   timeMinutes: number;
   check: RollDetail;
-  salvage?: RollDetail;
+  salvage?: RollDetail | RollDetail[];
   inventoryDelta: ResourceMap;
   stopped?: boolean;
 }
