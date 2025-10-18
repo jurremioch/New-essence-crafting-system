@@ -58,16 +58,25 @@ export function totalRequirements(risk: RiskConfig, attempts: number, extraCost:
 }
 
 export function maxFeasibleAttempts(inventory: Inventory, risk: RiskConfig, attempts: number, extraCost: number, optional?: OptionalCostConfig): number {
+  const perAttempt = totalRequirements(risk, 1, extraCost, optional);
   let feasible = attempts;
-  for (const key of Object.keys(risk.inputs) as Resource[]) {
-    const cost = risk.inputs[key] ?? 0;
-    if (cost <= 0) continue;
-    feasible = Math.min(feasible, Math.floor((inventory[key] ?? 0) / cost));
+  let hasCost = false;
+
+  for (const key of Object.keys(perAttempt) as Resource[]) {
+    const cost = perAttempt[key] ?? 0;
+    if (cost <= 0) {
+      continue;
+    }
+
+    hasCost = true;
+    const available = inventory[key] ?? 0;
+    feasible = Math.min(feasible, Math.floor(available / cost));
   }
-  if (optional && extraCost > 0) {
-    const available = inventory[optional.resource] ?? 0;
-    feasible = Math.min(feasible, Math.floor(available / extraCost));
+
+  if (!hasCost) {
+    return Math.max(0, attempts);
   }
+
   return Math.max(0, feasible);
 }
 
